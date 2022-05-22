@@ -3,10 +3,11 @@
 source .env
 
 ganache-cli --fork $MAINNET_RPC \
---unlock $ACCOUNT_1 \
---unlock $ACCOUNT_2 \
---unlock $ACCOUNT_3 \
+--unlock $USDC \
 --unlock $UNISWAP_V3_ROUTER \
---unlock $DAI_CONTRACT \
---unlock $WETH9 \
---unlock $UNISWAP_V3_QUOTER 
+--unlock $DAI \
+--unlock $WETH \
+--unlock $WETH_WHALE \
+--unlock $DAI_WHALE \
+--unlock $FACTORY \
+-l 100000000
