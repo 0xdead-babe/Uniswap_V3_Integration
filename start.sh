@@ -10,4 +10,5 @@ ganache-cli --fork $MAINNET_RPC \
 --unlock $WETH_WHALE \
 --unlock $DAI_WHALE \
 --unlock $FACTORY \
--l 100000000
+-l 100000000 \
+--verbose
