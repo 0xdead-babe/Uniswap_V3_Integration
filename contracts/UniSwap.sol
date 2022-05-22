@@ -113,7 +113,7 @@ contract UniSwap {
             ISwapRouter.ExactInputSingleParams({
                 tokenIn: _tokenIn,
                 tokenOut: _tokenOut,
-                fee: 5000,
+                fee: 3000,
                 recipient: msg.sender,
                 deadline: block.timestamp,
                 amountIn: _amountIn,

@@ -1,62 +1,69 @@
-const BN = require("bn.js");
+const {
+    ethers,
+    network
+} = require("hardhat");
+const {
+    isCallTrace
+} = require("hardhat/internal/hardhat-network/stack-traces/message-trace");
 const {
     DAI,
     WETH,
     DAI_WHALE,
     WETH_WHALE
 } = require("../env.js");
-const {sendEther} = require("./util.js");
-
-const FlashSwap = artifacts.require("FlashSwap");
-const IERC20 = artifacts.require("IERC20");
-const UniSwap = artifacts.require("UniSwap");
 
 
-contract("FlashSwap", async (accounts) => {
-    it("Habibi get profit", async () => {
+describe("FlashSwap", async () => {
 
+    it("Should FlashSwap", async () => {
+        const [deployer] = await ethers.getSigners();
 
-        const uniSwap = await UniSwap.new();
-        const flashSwap = await FlashSwap.new(uniSwap.address);
-        const wethContract = await IERC20.at(WETH);
-        const daiContract = await IERC20.at(DAI);
-        const account = accounts[0].address;
-        
+        const UniSwap = await ethers.getContractFactory("UniSwap", deployer);
+        const uniSwap = await UniSwap.deploy();
+        await uniSwap.deployed();
 
-        console.log(`Uniswap contract @ ${uniSwap.address}`);
-        console.log(`FlashSwap contract @ ${flashSwap.address}`);
+        const FlashSwap = await ethers.getContractFactory("FlashSwap", deployer);
+        const flashSwap = await FlashSwap.deploy(uniSwap.address);
+        await flashSwap.deployed();
 
+        console.log(`UniSwap @ ${uniSwap.address}`);
+        console.log(`FlashSwap @ ${flashSwap.address}`);
 
-        let wethFund = (new BN(10).pow(new BN(18)).mul(new BN(100))).toString();
-        let daiFund = (new BN(10).pow(new BN(18)).mul(new BN(1700))).toString();
-        let daiBorrow = (new BN(10).pow(new BN(18)).mul(new BN(1500))).toString();
+        const ERC_ABI = [{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"guy","type":"address"},{"name":"wad","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"src","type":"address"},{"name":"dst","type":"address"},{"name":"wad","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"wad","type":"uint256"}],"name":"withdraw","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"dst","type":"address"},{"name":"wad","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"},{"name":"","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"payable":true,"stateMutability":"payable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":true,"name":"guy","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Deposit","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Withdrawal","type":"event"}]
 
+       //impersonation account
 
-        console.log("[*] Executing flashSwap");
-
-        //pretty much sure it's going to be loss
-
-        await daiContract.transfer(flashSwap.address, daiFund, {
-            from: DAI_WHALE
+       await network.provider.request({
+        method: "hardhat_impersonateAccount",
+        params: [DAI_WHALE],
         });
-        await wethContract.transfer(flashSwap.address, wethFund, {
-            from: WETH_WHALE
-        })
 
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [WETH_WHALE],
+        });
+      
+        //get signers
+        const DAI_WH = await ethers.provider.getSigner(DAI_WHALE);
+        const WETH_WH = await ethers.provider.getSigner(WETH_WHALE);
 
-        const tx = await flashSwap.initFlash({
+        const WETH_CONTRACT = new ethers.Contract(WETH, ERC_ABI, deployer);
+        const DAI_CONTRACT = new ethers.Contract(DAI, ERC_ABI, deployer);
+
+        //funding contract because it moght be loss
+        let tx = await DAI_CONTRACT.connect(DAI_WH).transfer(flashSwap.address, ethers.utils.parseEther('10'));
+        tx = await WETH_CONTRACT.connect(WETH_WH).transfer(flashSwap.address, ethers.utils.parseEther('2'));
+
+        const flashParams = {
             token0: DAI,
             token1: WETH,
-            fee1: 5000,
-            amount0: daiBorrow,
-            amount1: 0,
-        }, {from:WETH_WHALE});
-
-        for (const log of tx.logs) {
-            console.log(log.args.message);
+            fee1: 500,
+            amount0: ethers.utils.parseEther('1500'),
+            amount1: 0
         }
+
+        tx = await flashSwap.initFlash(flashParams);
+        await tx.wait();
 
     });
 });
-
-//  ["0x6B175474E89094C44Da98b954EedeAC495271d0F", "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", 5000, "1500000000000000000000", 0]

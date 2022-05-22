@@ -14,7 +14,6 @@ import {UniSwap} from "./UniSwap.sol";
 import {KyberNetworkProxy as IKyberNetworkProxy} from "./interfaces/KyberNetworkProxy.sol";
 import "hardhat/console.sol";
 
-
 //refrence:https://www.youtube.com/watch?v=eM4UidkvB-o
 //refrence: https://medium.com/coinmonks/tutorial-of-flash-swaps-of-uniswap-v3-73c0c846b822
 
@@ -43,8 +42,8 @@ contract FlashSwap is
         0x1F98431c8aD98523631AE4a59f267346ea31F984;
 
     UniSwap public immutable swapper;
-   
-   event LOG(string message);
+
+    event LOG(string message);
 
     struct FlashParams {
         address token0;
@@ -83,7 +82,6 @@ contract FlashSwap is
         return amount_out;
     }
 
-
     function uniswapV3FlashCallback(
         uint256 fee0,
         uint256 fee1,
@@ -101,46 +99,36 @@ contract FlashSwap is
 
         address token0 = decoded.poolKey.token0; // DAI
         address token1 = decoded.poolKey.token1; // WETH
-        uint amount_swap = decoded.amount0;
+        uint256 amount_swap = decoded.amount0;
 
-        emit LOG("Swapping bro!!");
-      
-        
-        //Dai -> usdc
+        // Dai -> usdc
 
-            uint256 amountOut1 = transferWrapperUniSwap(
-                token0,
-                USDC,
-                amount_swap
-            );
+        log_balances();
+        uint256 amountOut1 = transferWrapperUniSwap(token0, USDC, amount_swap);
 
+        log_balances();
 
-            //USDC -> WETH
-             uint256 amountOut2 = transferWrapperUniSwap(
-                USDC,
-                WETH9,
-                amountOut1
-            );
+        // USDC -> WETH
+        uint256 amountOut2 = transferWrapperUniSwap(USDC, WETH9, amountOut1);
 
-            //WETH -> DAI
+        log_balances();
 
-            uint256 finalSwap = transferWrapperUniSwap(
-                WETH9,
-                DAI,
-                amountOut2
-            );
+        // WETH -> DAI
+
+        uint256 finalSwap = transferWrapperUniSwap(WETH9, DAI, amountOut2);
+
+        log_balances();
 
         uint256 amount0Owed = LowGasSafeMath.add(decoded.amount0, fee0);
         uint256 amount1Owed = LowGasSafeMath.add(decoded.amount1, fee1);
 
-        if (amount0Owed > 0) pay(token0, address(this), msg.sender, amount0Owed);
-        if (amount1Owed > 0) pay(token1, address(this), msg.sender, amount1Owed);
+        if (amount0Owed > 0)
+            pay(token0, address(this), msg.sender, amount0Owed);
+        if (amount1Owed > 0)
+            pay(token1, address(this), msg.sender, amount1Owed);
     }
 
-
-
     function initFlash(FlashParams memory params) external {
-        emit LOG("Started Swap");
         PoolAddress.PoolKey memory poolKey = PoolAddress.PoolKey({
             token0: params.token0,
             token1: params.token1,
@@ -158,9 +146,32 @@ contract FlashSwap is
                     amount0: params.amount0,
                     amount1: params.amount1,
                     payer: msg.sender,
-                    poolKey: poolKey    
+                    poolKey: poolKey
                 })
             )
         );
+    }
+
+    function log_balances() private view {
+        uint256 balance_weth = IERC20(_WETH9).balanceOf(address(this));
+        uint256 balance_dai = IERC20(DAI).balanceOf(address(this));
+        uint256 balance_usdc = IERC20(USDC).balanceOf(address(this));
+
+        console.log(
+            "WETH: %s.%s",
+            balance_weth / 1e18,
+            balance_weth - (balance_weth / 1e18) * 1e18
+        );
+        console.log(
+            "DAI: %s.%s",
+            balance_dai / 1e18,
+            balance_dai - (balance_dai / 1e18) * 1e18
+        );
+        console.log(
+            "USDC: %s.%s",
+            balance_usdc / 1e6,
+            balance_usdc - (balance_usdc / 1e6) * 1e6
+        );
+        console.log("---------------------------------------------");
     }
 }
