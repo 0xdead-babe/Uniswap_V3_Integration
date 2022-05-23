@@ -12,7 +12,7 @@
 
 ```shell npm install```
 
-**Note**
+>**Note**
 
 you will need MAINNET_RPC Environment variable
 
