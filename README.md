@@ -1,16 +1,30 @@
-# Basic Sample Hardhat Project
+### Uniswap V3 Token Swap and Flash Swap Example
 
-This project demonstrates a basic Hardhat use case. It comes with a sample contract, a test for that contract, a sample script that deploys that contract, and an example of a task implementation, which simply lists the available accounts.
+# Installation and Setup
 
-Try running some of the following tasks:
+## 1 Install Node.js
 
-```shell
-npx hardhat accounts
-npx hardhat compile
-npx hardhat clean
-npx hardhat test
-npx hardhat node
-node scripts/sample-script.js
-npx hardhat help
-```
-# UniswapV3Integration
+## 2 Clone The Repo 
+
+```shell git clone https://github.com/0xdead-babe/Uniswap_V3_Integration.git```
+
+## 3 Install necessary dependencies
+
+```shell npm install```
+
+**Note**
+
+you will need MAINNET_RPC Environment variable
+
+create .env file with the following content
+
+```bash MAINNET RPC="ALCHEMY_MAINNET_RPC" ```
+
+## 4 Compile contracts
+
+```shell npx hardhat compile```
+
+## 5 Run Test 
+
+```shell npx hardhat test```
+

@@ -1,69 +1,66 @@
-const BN = require("bn.js");
+const {
+    network,
+    ethers
+} = require("hardhat");
+const {
+    isCallTrace
+} = require("hardhat/internal/hardhat-network/stack-traces/message-trace");
+const {
+    DAI,
+    WETH,
+    DAI_WHALE,
+    WETH_WHALE
+} = require("../addresses.js");
 
-const UniSwap = artifacts.require("UniSwap");
-const IERC20 = artifacts.require("IERC20");
 
 
-contract("Uniswap", (accounts) => {
-    const DAI_CONTRACT = "0x6B175474E89094C44Da98b954EedeAC495271d0F";
-    const WETH9 = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2";
+describe("UniSwap", async () => {
 
-    const TO = accounts[5];
-    const FROM_ACCOUNT = accounts[0];
-    const DAI_ACCOUNT = "0x7344E478574aCBe6DaC9dE1077430139E17EEc3D";
 
-    it("should swap dai for weth", async () => {
-        const tokenIn = await IERC20.at(WETH9);
-        const tokenOut = await IERC20.at(DAI_CONTRACT);
-        const testUniSwap = await UniSwap.new();
-        const amountIn = new BN(10).pow(new BN(18)).mul(new BN(1)); //1 Ether
+    it("Should Swap dai for eth", async () => {
 
-        await testUniSwap.convertExactEthToDai(TO, {
-            from: FROM_ACCOUNT,
-            value: amountIn
+        const [deployer] = await ethers.getSigners();
+        const ERC_ABI = [{"constant":true,"inputs":[],"name":"name","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"guy","type":"address"},{"name":"wad","type":"uint256"}],"name":"approve","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"totalSupply","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"src","type":"address"},{"name":"dst","type":"address"},{"name":"wad","type":"uint256"}],"name":"transferFrom","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[{"name":"wad","type":"uint256"}],"name":"withdraw","outputs":[],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":true,"inputs":[],"name":"decimals","outputs":[{"name":"","type":"uint8"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"}],"name":"balanceOf","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":true,"inputs":[],"name":"symbol","outputs":[{"name":"","type":"string"}],"payable":false,"stateMutability":"view","type":"function"},{"constant":false,"inputs":[{"name":"dst","type":"address"},{"name":"wad","type":"uint256"}],"name":"transfer","outputs":[{"name":"","type":"bool"}],"payable":false,"stateMutability":"nonpayable","type":"function"},{"constant":false,"inputs":[],"name":"deposit","outputs":[],"payable":true,"stateMutability":"payable","type":"function"},{"constant":true,"inputs":[{"name":"","type":"address"},{"name":"","type":"address"}],"name":"allowance","outputs":[{"name":"","type":"uint256"}],"payable":false,"stateMutability":"view","type":"function"},{"payable":true,"stateMutability":"payable","type":"fallback"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":true,"name":"guy","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Approval","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Transfer","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"dst","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Deposit","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"name":"src","type":"address"},{"indexed":false,"name":"wad","type":"uint256"}],"name":"Withdrawal","type":"event"}]
+
+        //account impersonation
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [DAI_WHALE],
         });
 
-        const balanceInDecimals = await tokenOut.balanceOf(TO);
-        const balance = await web3.utils.fromWei(balanceInDecimals.toString(), 'ether')
-        console.log(balance);
-    });
-
-    it("should swap weth for dai", async () => {
-        const tokenIn = await IERC20.at(DAI_CONTRACT);
-        const tokenOut = await IERC20.at(WETH9);
-        const testUniSwap = await UniSwap.new();
-        const amountIn = new BN(10).pow(new BN(18)).mul(new BN(100)); //100 DAI
-
-        await tokenIn.approve(testUniSwap.address, amountIn, {
-            from: DAI_ACCOUNT
+        await network.provider.request({
+            method: "hardhat_impersonateAccount",
+            params: [WETH_WHALE],
         });
 
-        await testUniSwap.convertExactDaiToEth(amountIn, TO, {
-            from: DAI_ACCOUNT,
-        })
+        //get signers
+        const WETH_WH = ethers.provider.getSigner(WETH_WHALE);
 
-        const balanceInDecimals = await tokenOut.balanceOf(TO);
-        const balance = await web3.utils.fromWei(balanceInDecimals.toString(), 'ether')
+        const WETH_CONTRACT = new ethers.Contract(WETH, ERC_ABI, deployer);
+        const DAI_CONTRACT = new ethers.Contract(DAI, ERC_ABI, deployer);
+
+        const UniSwap = await ethers.getContractFactory("UniSwap", deployer);
+        const uniSwap = await UniSwap.deploy();
+        await uniSwap.deployed();
+
+        console.log(`UniSwap @ ${uniSwap.address}`);
+
+        const amountIn = ethers.utils.parseEther('1');
+
+        //get some Weth
+        let tx = await WETH_CONTRACT.connect(WETH_WH).transfer(deployer.address, amountIn);
+
+        //approve swap contract
+        await WETH_CONTRACT.connect(deployer).approve(uniSwap.address, amountIn);
+
+        // //swap token
+        tx = await uniSwap.swapTokenMax(WETH, DAI, amountIn);
+        tx.wait();
+
+        const balanceInDecimals = await DAI_CONTRACT.balanceOf(deployer.address);
+        const balance = ethers.utils.formatEther(balanceInDecimals);
         console.log(balance.toString());
+
     })
 
-    it("should swap using intermediary pool", async () => {
-        const tokenIn = await IERC20.at(DAI_CONTRACT);
-        const tokenOut = await IERC20.at(WETH9);
-        const testUniSwap = await UniSwap.new();
-        const recipient = accounts[4];
-        const amountIn = new BN(10).pow(new BN(18)).mul(new BN(100)); // 100 DAI 
-
-        await tokenIn.approve(testUniSwap.address, amountIn, {
-            from: DAI_ACCOUNT
-        });
-
-        await testUniSwap.exactInputMultiHop(amountIn, recipient, {
-            from: DAI_ACCOUNT
-        });
-
-        const balanceInDecimals = await tokenOut.balanceOf(recipient);
-        const balance = await web3.utils.fromWei(balanceInDecimals.toString(), 'ether');
-        console.log(balance);
-    })
-})
+});

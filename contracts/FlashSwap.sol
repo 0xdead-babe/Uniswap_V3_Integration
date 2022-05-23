@@ -11,7 +11,6 @@ import "@uniswap/v3-periphery/contracts/libraries/CallbackValidation.sol";
 import "@uniswap/v3-periphery/contracts/libraries/TransferHelper.sol";
 
 import {UniSwap} from "./UniSwap.sol";
-import {KyberNetworkProxy as IKyberNetworkProxy} from "./interfaces/KyberNetworkProxy.sol";
 import "hardhat/console.sol";
 
 //refrence:https://www.youtube.com/watch?v=eM4UidkvB-o
@@ -115,7 +114,7 @@ contract FlashSwap is
 
         // WETH -> DAI
 
-        uint256 finalSwap = transferWrapperUniSwap(WETH9, DAI, amountOut2);
+        transferWrapperUniSwap(WETH9, DAI, amountOut2);
 
         log_balances();
 
